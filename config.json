@@ -1,0 +1,41 @@
+{
+  "event_date": "11 Feb 2026",
+  "venue": "LocalGlobe",
+  "wifi": "BRILLplace",
+  "subtitle": "CODE CURIOUS",
+  "agenda": [
+    {"time": "18:25", "label": "Anthropic interview"},
+    {"time": "19:00", "label": "Group discussions"},
+    {"time": "20:00", "label": "Time to go home!"}
+  ],
+  "go_home_messages": [
+    "Time to go home!",
+    "Your sofa misses you",
+    "The pub is calling...",
+    "Last one out gets the light",
+    "git commit -m 'gone home'"
+  ],
+  "urgency_start_minutes_before_end": 40,
+  "verbs": [
+    "Reticulating splines...",
+    "Compiling thoughts...",
+    "Grepping for meaning...",
+    "Rebasing reality...",
+    "Initializing curiosity...",
+    "Parsing the void...",
+    "Optimizing vibes...",
+    "Aligning tokens...",
+    "Hydrating the cache...",
+    "Unwinding the stack...",
+    "Resolving dependencies...",
+    "Defragmenting ideas...",
+    "Warming up the neurons...",
+    "Indexing possibilities...",
+    "Negotiating with the compiler...",
+    "Untangling spaghetti...",
+    "Calibrating enthusiasm...",
+    "Consulting the oracle...",
+    "Deploying butterflies...",
+    "Refactoring the universe..."
+  ]
+}
