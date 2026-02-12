@@ -1,7 +1,7 @@
 Output demo.gif
 
-Set Width 1200
-Set Height 600
+Set Width 1400
+Set Height 700
 Set FontSize 14
 Set FontFamily "SF Mono"
 Set Theme "Catppuccin Mocha"
