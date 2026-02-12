@@ -107,9 +107,12 @@ TITLE_LINES = [
 # ---------------------------------------------------------------------------
 
 def _load_config():
-    """Load config.json from the same directory as this script."""
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(script_dir, "config.json")
+    """Load config.json from the same directory as this script, or a path given as argv[1]."""
+    if len(sys.argv) > 1:
+        config_path = sys.argv[1]
+    else:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(script_dir, "config.json")
     if os.path.exists(config_path):
         with open(config_path) as f:
             return json.load(f)

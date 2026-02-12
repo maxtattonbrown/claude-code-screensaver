@@ -1,0 +1,12 @@
+{
+  "event_date": "20 Mar 2026",
+  "venue": "Shoreditch House",
+  "wifi": "ShoreditchGuest",
+  "subtitle": "CODE LONDON",
+  "agenda": [
+    {"time": "18:00", "label": "Doors open & networking"},
+    {"time": "18:30", "label": "Lightning talks"},
+    {"time": "23:59", "label": "Time to go home!"}
+  ],
+  "urgency_start_minutes_before_end": 40
+}
