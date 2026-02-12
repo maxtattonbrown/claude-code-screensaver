@@ -45,7 +45,12 @@ class Screen:
         return (self.h, self.w)
 
     def erase(self):
-        self.buf = ['\033[H\033[2J']
+        # Overwrite every line with spaces instead of \033[2J which flashes
+        self._update_size()
+        blank = ' ' * self.w
+        self.buf = ['\033[H\033[0m']
+        for row in range(self.h):
+            self.buf.append(f'\033[{row+1};1H{blank}')
 
     def flush(self):
         sys.stdout.write(''.join(self.buf))
