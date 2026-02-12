@@ -1,6 +1,6 @@
 # Claude Code Event Screensaver
 
-![demo](demo.gif)
+![demo](demo-v2.gif)
 
 A terminal screensaver for Claude Code community events. Displays a shimmering CLAUDE block-art logo, rotating status messages, event info, and animated squid mascots (the Claude Code mascot) that swim across the screen.
 
