@@ -544,7 +544,7 @@ def main():
         next_egg_time = time.monotonic() + random.uniform(5, 12)
 
         # Peek event: rare big crab rising from the bottom
-        next_peek_time = time.monotonic() + random.uniform(10, 15)
+        next_peek_time = time.monotonic() + random.uniform(90, 180)
 
         while True:
             t = time.monotonic()
@@ -583,7 +583,7 @@ def main():
                                 e.dx = -random.uniform(0.8, 1.5)
                             else:
                                 e.dx = random.uniform(0.8, 1.5)
-                next_peek_time = t + random.uniform(60, 120)
+                next_peek_time = t + random.uniform(120, 240)
 
             # --- Draw frame ---
             scr.erase()
