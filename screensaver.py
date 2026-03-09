@@ -333,6 +333,13 @@ class CrabScuttle:
         """Schedule the next pause in scuttling."""
         self.pause_timer = random.randint(20, 50)
 
+    def _resume_scuttle(self):
+        """Return to scuttling after a chat ends."""
+        self.mode = 'scuttle'
+        self.chat_partner = None
+        self.chat_cooldown = 40
+        self._schedule_pause()
+
     def draw(self, scr, t):
         if self.done:
             return
@@ -355,14 +362,8 @@ class CrabScuttle:
                 if self.chat_partner and not self.chat_partner.done:
                     self.accessory, self.chat_partner.accessory = (
                         self.chat_partner.accessory, self.accessory)
-                    self.chat_partner.mode = 'scuttle'
-                    self.chat_partner.chat_partner = None
-                    self.chat_partner.chat_cooldown = 40
-                    self.chat_partner._schedule_pause()
-                self.chat_partner = None
-                self.mode = 'scuttle'
-                self.chat_cooldown = 40
-                self._schedule_pause()
+                    self.chat_partner._resume_scuttle()
+                self._resume_scuttle()
 
         else:  # 'scuttle'
             if self.chat_cooldown > 0:
@@ -386,22 +387,17 @@ class CrabScuttle:
             self.y = max(self.h // 2 + 3, min(self.h - 8, self.y))
 
             # Off-screen exit
-            if self.going_right and self.x > self.w + 2:
-                self.done = True
-                return
-            if not self.going_right and self.x < -CRAB_W - 2:
+            if self.x > self.w + 2 or self.x < -CRAB_W - 2:
                 self.done = True
                 return
 
-        # Leg animation
+        # Leg animation — still when chatting, frantic when fleeing, rhythmic otherwise
         if self.mode == 'chat':
-            leg_frame = CRAB_LEGS[0]  # still while chatting
-        elif self.mode == 'flee':
-            leg_frame = CRAB_LEGS[(self.frame // 2) % 2]  # frantic
+            leg_idx = 0
         else:
-            leg_speed = 5 if not self.paused else 8
-            leg_frame = CRAB_LEGS[(self.frame // leg_speed) % 2]
-        lines = CRAB_BODY + [leg_frame]
+            divisor = 2 if self.mode == 'flee' else (5 if not self.paused else 8)
+            leg_idx = (self.frame // divisor) % 2
+        lines = CRAB_BODY + [CRAB_LEGS[leg_idx]]
 
         ix, iy = int(self.x), int(self.y)
         crab_attr = color(CRAB_COLOR) | A_BOLD
@@ -434,18 +430,9 @@ BIG_CRAB_OPEN = [
     '██████████████████████████████████████████████████',
     '██████████████████████████████████████████████████',
 ]
-BIG_CRAB_BLINK = [
-    '██████████████████████████████████████████████████',
-    '██████████████████████████████████████████████████',
-    '██████████████████████████████████████████████████',
-    '██████████████████████████████████████████████████',
-    '██████████████████████████████████████████████████',
-    '██████████████████████████████████████████████████',
-    '██████████████████████████████████████████████████',
-    '██████████████████████████████████████████████████',
-]
 BIG_CRAB_W = max(len(l) for l in BIG_CRAB_OPEN)
 BIG_CRAB_H = len(BIG_CRAB_OPEN)
+BIG_CRAB_BLINK = ['██████████████████████████████████████████████████'] * BIG_CRAB_H
 
 
 class CrabPeek:
@@ -610,17 +597,20 @@ def main():
                      if isinstance(e, CrabScuttle) and not e.done
                      and e.mode == 'scuttle' and e.chat_cooldown <= 0]
             for i_s in range(len(crabs)):
+                a = crabs[i_s]
+                if a.mode != 'scuttle':
+                    continue  # already paired in an earlier iteration
                 for j_s in range(i_s + 1, len(crabs)):
-                    a, b = crabs[i_s], crabs[j_s]
-                    if (abs(a.x - b.x) < CRAB_W and abs(a.y - b.y) < 3
-                            and a.mode == 'scuttle' and b.mode == 'scuttle'):
-                        a.mode = 'chat'
-                        b.mode = 'chat'
+                    b = crabs[j_s]
+                    if (b.mode == 'scuttle'
+                            and abs(a.x - b.x) < CRAB_W
+                            and abs(a.y - b.y) < 3):
                         chat_len = random.randint(30, 60)
-                        a.chat_timer = chat_len
-                        b.chat_timer = chat_len
+                        a.mode = b.mode = 'chat'
+                        a.chat_timer = b.chat_timer = chat_len
                         a.chat_partner = b
                         b.chat_partner = a
+                        break  # a is now chatting, move to next crab
 
             eggs = [e for e in eggs if not e.done]
 
