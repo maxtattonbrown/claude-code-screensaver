@@ -1,11 +1,11 @@
 {
-  "event_date": "20 Mar 2026",
-  "venue": "Shoreditch House",
-  "wifi": "ShoreditchGuest",
-  "subtitle": "CODE LONDON",
+  "event_date": "11 Mar 2026",
+  "venue": "Granola",
+  "wifi": "",
+  "subtitle": "CODE CURIOUS",
   "agenda": [
-    {"time": "18:00", "label": "Doors open & networking"},
-    {"time": "18:30", "label": "Lightning talks"},
+    {"time": "18:25", "label": "Anthropic interview"},
+    {"time": "19:00", "label": "Group discussions"},
     {"time": "23:59", "label": "Time to go home!"}
   ],
   "urgency_start_minutes_before_end": 40

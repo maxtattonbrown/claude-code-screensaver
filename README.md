@@ -1,8 +1,8 @@
 # Claude Code Event Screensaver
 
-![demo](demo-v2.gif)
+![demo](demo-v3.gif)
 
-A terminal screensaver for Claude Code community events. Displays a shimmering CLAUDE block-art logo, rotating status messages, event info, and animated squid mascots (the Claude Code mascot) that swim across the screen.
+A terminal screensaver for Claude Code community events. Displays a shimmering CLAUDE block-art logo, rotating status messages, event info, and scuttling crab mascots (the Clawd / Claude Code mascot) that interact on screen.
 
 ## Requirements
 
@@ -62,7 +62,8 @@ All fields are optional — sensible defaults are built in.
 ## Features
 
 - Shimmering warm-palette animation on the CLAUDE logo
-- Squid mascots that swim with jellyfish-like propulsion
-- Hearts spawn when two squids meet
+- Crab mascots (Clawd) that scuttle sideways with accessories (lightbulb, magnifying glass, ?)
+- Crabs stop and chat when they meet, swapping accessories
+- A big crab occasionally peeks from the bottom of the screen — small crabs flee
 - Floating particles drift upward
 - The last agenda item pulses with increasing urgency as its time approaches, then cycles through custom messages after
