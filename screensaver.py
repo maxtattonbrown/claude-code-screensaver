@@ -26,6 +26,7 @@ def color(n):
 
 
 WARM = [173, 179, 180, 186, 187, 216, 217, 223, 224, 230, 209, 215, 174, 138, 144]
+EDGE = [22, 28, 34, 40, 46, 82, 118, 154, 209, 215]
 
 
 class Screen:
@@ -46,9 +47,10 @@ class Screen:
 
     def erase(self):
         # Overwrite every line with spaces instead of \033[2J which flashes
+        # Force black background so the screensaver looks correct on any terminal
         self._update_size()
         blank = ' ' * self.w
-        self.buf = ['\033[H\033[0m']
+        self.buf = ['\033[H\033[0m\033[48;5;0m']
         for row in range(self.h):
             self.buf.append(f'\033[{row+1};1H{blank}')
 
@@ -69,8 +71,8 @@ def safe_addstr(scr, y, x, s, attr=0):
     bold = attr & A_BOLD
     dim = attr & A_DIM
     style = '1' if bold else ('2' if dim else '0')
-    # ANSI cursor positioning is 1-based
-    scr.buf.append(f'\033[{y+1};{x+1}H\033[{style};38;5;{col}m{s}\033[0m')
+    # ANSI cursor positioning is 1-based; 48;5;0 forces black background
+    scr.buf.append(f'\033[{y+1};{x+1}H\033[{style};38;5;{col};48;5;0m{s}')
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +119,11 @@ def _load_config():
     return {}
 
 _CFG = _load_config()
+
+# Theme support: "cutting-edge" activates matrix rain, sunglasses, shurikens
+_theme = _CFG.get("theme", "default")
+IS_EDGE = _theme == "cutting-edge"
+SHIMMER = EDGE if IS_EDGE else WARM
 
 # Build display strings from config (with sensible defaults)
 _subtitle_word = _CFG.get("subtitle", "CODE CURIOUS")
@@ -204,18 +211,18 @@ def draw_logo(scr, t, verb_idx):
             if ch == ' ':
                 continue
             shimmer = math.sin(j * 0.3 + t * 0.4 + i * 0.5)
-            ci_idx = int((shimmer + 1) / 2 * len(WARM)) % len(WARM)
+            ci_idx = int((shimmer + 1) / 2 * len(SHIMMER)) % len(SHIMMER)
             safe_addstr(scr, start_y + i, start_x + j, ch,
-                        color(WARM[ci_idx]) | A_BOLD)
+                        color(SHIMMER[ci_idx]) | A_BOLD)
 
     # "C O D E   C U R I O U S" subtitle
     sub_y = start_y + len(TITLE_LINES) + 1
     sub_x = max(0, (w - len(SUBTITLE)) // 2)
     for j, ch in enumerate(SUBTITLE):
         shimmer = math.sin(j * 0.4 + t * 0.3)
-        ci_idx = int((shimmer + 1) / 2 * len(WARM)) % len(WARM)
+        ci_idx = int((shimmer + 1) / 2 * len(SHIMMER)) % len(SHIMMER)
         safe_addstr(scr, sub_y, sub_x + j, ch,
-                    color(WARM[ci_idx]) | A_BOLD)
+                    color(SHIMMER[ci_idx]) | A_BOLD)
 
     # Rotating spinner verb
     verb = VERBS[verb_idx]
@@ -296,10 +303,13 @@ class SquidSwim:
         self.done = False
         self.frame = 0
 
-        # Horizontal: drift steadily across
+        # Horizontal: drift steadily across (faster in edge mode)
         self.going_right = random.choice([True, False])
         self.x = float(-SQUID_W if self.going_right else w)
-        self.dx = random.uniform(0.2, 0.4) * (1 if self.going_right else -1)
+        if IS_EDGE:
+            self.dx = random.uniform(0.4, 0.8) * (1 if self.going_right else -1)
+        else:
+            self.dx = random.uniform(0.2, 0.4) * (1 if self.going_right else -1)
 
         # Vertical: start in the gap between logo and agenda
         self.y = float(random.randint(h // 2 + 3, h - 8))
@@ -309,11 +319,14 @@ class SquidSwim:
         self.zip_timer = 0       # frames until next zip
         self.zipping = False
         self.zip_frames_left = 0
+        self.dash_timer = 0      # Cutting Edge: frames until next dash
         self._schedule_zip()
+        if IS_EDGE:
+            self.dash_timer = random.randint(40, 80)
 
     def _schedule_zip(self):
         """Schedule the next upward zip."""
-        self.zip_timer = random.randint(15, 35)
+        self.zip_timer = random.randint(8, 20) if IS_EDGE else random.randint(15, 35)
 
     def draw(self, scr, t):
         if self.done:
@@ -331,11 +344,19 @@ class SquidSwim:
                 self.zip_frames_left = random.randint(10, 18)
         else:
             # Zip upward — tentacles contract (fast leg animation)
-            self.vy = -0.55
+            self.vy = -0.75 if IS_EDGE else -0.55
             self.zip_frames_left -= 1
             if self.zip_frames_left <= 0:
                 self.zipping = False
                 self.vy = -0.1
+                self._schedule_zip()
+
+        # Cutting Edge: occasional horizontal speed dash
+        if IS_EDGE:
+            self.dash_timer -= 1
+            if self.dash_timer <= 0:
+                self.dx *= random.uniform(1.5, 2.5)
+                self.dash_timer = random.randint(50, 100)
                 self._schedule_zip()
 
         # Move
@@ -361,6 +382,7 @@ class SquidSwim:
         squid_attr = color(SQUID_COLOR) | A_BOLD
         for i, line in enumerate(lines):
             safe_addstr(scr, iy + i, ix, line, squid_attr)
+
 
 
 class FloatingHeart:
@@ -426,6 +448,88 @@ class FloatingParticle:
 
 
 # ---------------------------------------------------------------------------
+# Cutting Edge theme effects
+# ---------------------------------------------------------------------------
+
+MATRIX_CHARS = list("01{}[]<>|/\\=+*&#@~.:;!?^%$")
+MATRIX_GREENS = [22, 28, 34, 40, 46, 82, 118]
+
+
+class MatrixColumn:
+    """A falling column of green characters — Matrix rain effect."""
+
+    def __init__(self, h, w):
+        self.x = random.randint(0, w - 1)
+        self.head = random.uniform(-15, -1)
+        self.speed = random.uniform(0.15, 0.45)
+        self.trail_len = random.randint(5, 15)
+        self.h = h
+        self.done = False
+        self.chars = [random.choice(MATRIX_CHARS)
+                      for _ in range(self.trail_len + 5)]
+
+    def draw(self, scr, t):
+        if self.done:
+            return
+        self.head += self.speed
+        if self.head - self.trail_len > self.h:
+            self.done = True
+            return
+        head_y = int(self.head)
+        # Head: brightest green, random char each frame
+        if 0 <= head_y < self.h:
+            safe_addstr(scr, head_y, self.x,
+                        random.choice(MATRIX_CHARS),
+                        color(MATRIX_GREENS[-1]) | A_BOLD)
+        # Trail: fading green
+        for i in range(1, self.trail_len):
+            y = head_y - i
+            if y < 0 or y >= self.h:
+                continue
+            fade_idx = max(0, len(MATRIX_GREENS) - 1
+                           - (i * len(MATRIX_GREENS) // self.trail_len))
+            ch = self.chars[i % len(self.chars)]
+            attr = A_DIM if i > self.trail_len * 0.7 else 0
+            safe_addstr(scr, y, self.x, ch,
+                        color(MATRIX_GREENS[fade_idx]) | attr)
+
+
+class Spark:
+    """A single spark particle from a squid clash."""
+
+    CHARS = ["*", "+", "x", ".", "'"]
+
+    def __init__(self, x, y):
+        self.x = float(x)
+        self.y = float(y)
+        angle = random.uniform(0, 2 * math.pi)
+        speed = random.uniform(0.3, 0.9)
+        self.dx = math.cos(angle) * speed
+        self.dy = math.sin(angle) * speed * 0.5  # squash vertically
+        self.life = random.randint(8, 20)
+        self.char = random.choice(self.CHARS)
+        self.done = False
+
+    def draw(self, scr, t):
+        if self.done:
+            return
+        self.x += self.dx
+        self.y += self.dy
+        self.life -= 1
+        if self.life <= 0:
+            self.done = True
+            return
+        # Bright yellow/white flash that fades to orange then dim
+        if self.life > 14:
+            attr = color(255) | A_BOLD
+        elif self.life > 8:
+            attr = color(214) | A_BOLD
+        else:
+            attr = color(208) | A_DIM
+        safe_addstr(scr, int(self.y), int(self.x), self.char, attr)
+
+
+# ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
 
@@ -434,13 +538,16 @@ def main():
     try:
         tty.setcbreak(sys.stdin.fileno())
         # Alternate screen buffer + hide cursor + hide scrollbar
-        sys.stdout.write('\033[?1049h\033[?25l\033[?30l')
+        # Force black background so dark themes render correctly on light terminals
+        sys.stdout.write('\033[?1049h\033[?25l\033[?30l\033[48;5;0m\033[2J')
         sys.stdout.flush()
 
         scr = Screen()
         verb_idx = 0
         last_verb_switch = time.monotonic()
         eggs = []  # active easter egg objects
+        rain = []  # matrix rain columns (drawn behind logo)
+        next_rain = time.monotonic()
 
         # Spawn squid immediately so we can check it
         h, w = scr.getmaxyx()
@@ -464,17 +571,28 @@ def main():
                 else:
                     for _ in range(random.randint(1, 3)):
                         eggs.append(FloatingParticle(h, w))
-                next_egg_time = t + random.uniform(10, 25)
+                next_egg_time = t + random.uniform(5, 12) if IS_EDGE else t + random.uniform(10, 25)
 
             # --- Draw frame ---
             scr.erase()
+
+            # Matrix rain: drawn first so logo and squids sit on top
+            if IS_EDGE:
+                if t > next_rain:
+                    h, w = scr.getmaxyx()
+                    rain.append(MatrixColumn(h, w))
+                    next_rain = t + random.uniform(0.3, 1.2)
+                for col in rain:
+                    col.draw(scr, t)
+                rain = [c for c in rain if not c.done]
+
             draw_logo(scr, t, verb_idx)
 
             # Draw active eggs on top
             for egg in eggs:
                 egg.draw(scr, t)
 
-            # Check for squid collisions → spawn hearts
+            # Check for squid collisions → spawn hearts (or shurikens)
             squids = [e for e in eggs if isinstance(e, SquidSwim) and not e.done]
             for i_s in range(len(squids)):
                 for j_s in range(i_s + 1, len(squids)):
@@ -484,7 +602,11 @@ def main():
                         if a.frame % 20 == 0:
                             mid_x = int((a.x + b.x) / 2) + SQUID_W // 2
                             mid_y = int(min(a.y, b.y)) - 1
-                            eggs.append(FloatingHeart(mid_x, mid_y))
+                            if IS_EDGE:
+                                for _ in range(random.randint(5, 9)):
+                                    eggs.append(Spark(mid_x, mid_y))
+                            else:
+                                eggs.append(FloatingHeart(mid_x, mid_y))
 
             eggs = [e for e in eggs if not e.done]
 

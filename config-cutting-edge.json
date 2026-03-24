@@ -1,0 +1,43 @@
+{
+  "event_date": "24 March 2026",
+  "venue": "incident.io",
+  "wifi": "",
+  "subtitle": "CUTTING EDGE",
+  "theme": "cutting-edge",
+  "agenda": [
+    {"time": "18:15", "label": "Food + introductions"},
+    {"time": "18:30", "label": "Q&A"},
+    {"time": "19:30", "label": "Discussions"},
+    {"time": "20:00", "label": "Time to go home!"}
+  ],
+  "go_home_messages": [
+    "The shadows call you home...",
+    "A ninja knows when to vanish",
+    "Sheathe your blade, warrior",
+    "The dojo is closing",
+    "git commit -m 'disappeared into smoke'"
+  ],
+  "urgency_start_minutes_before_end": 40,
+  "verbs": [
+    "Sharpening the katana...",
+    "Deploying shadow clones...",
+    "Infiltrating the mainframe...",
+    "Engaging stealth mode...",
+    "Forging the blade...",
+    "Decrypting the scroll...",
+    "Activating night vision...",
+    "Loading throwing stars...",
+    "Breaching the firewall...",
+    "Compiling in the shadows...",
+    "Hacking the Gibson...",
+    "Initializing dark mode...",
+    "Cloaking the payload...",
+    "Spinning up the dojo...",
+    "Unsheathing the API...",
+    "Running in stealth...",
+    "Calibrating the edge...",
+    "Slicing through latency...",
+    "Entering the matrix...",
+    "Summoning the sensei..."
+  ]
+}
