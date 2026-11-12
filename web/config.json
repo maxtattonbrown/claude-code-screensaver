@@ -4,7 +4,7 @@
   "date_line": "Edinburgh · Thu 12 Nov 2026",
   "venue": "CreateFuture, The Stamp Office",
   "host": "host: Max Tatton-Brown · maxtb.com",
-  "wifi": { "network": "", "password": "" },
+  "wifi": { "network": "CF-Events", "password": "CreateFuture2025!" },
   "thanks": "Thanks to Anthropic, CreateFuture, CodeBase and Techscaler",
   "agenda": [
     { "time": "17:30", "label": "Arrive, grab a badge, munch" },
