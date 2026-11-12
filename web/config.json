@@ -9,9 +9,9 @@
   "agenda": [
     { "time": "17:30", "label": "Arrive, grab a badge, munch" },
     { "time": "18:15", "label": "Welcome: CreateFuture + Techscaler" },
-    { "time": "18:20", "label": "Max: what's on my mind" },
-    { "time": "18:35", "label": "Q&A with Max + Darren" },
-    { "time": "19:05", "label": "Open mic room, chat, roam" },
+    { "time": "18:20", "label": "Q&A with Max + Darren" },
+    { "time": "18:45", "label": "Open mic: show what you're building" },
+    { "time": "19:00", "label": "Chat, roam, find your people" },
     { "time": "20:30", "label": "Wrap up, then the pub" }
   ],
   "urgency_start_minutes_before_end": 40,
