@@ -1,0 +1,47 @@
+{
+  "subtitle": "CODE CURIOUS EDINBURGH",
+  "welcome": "Welcome to Claude Code Curious!",
+  "date_line": "Edinburgh · Thu 12 Nov 2026",
+  "venue": "CreateFuture, The Stamp Office",
+  "host": "host: Max Tatton-Brown · maxtb.com",
+  "wifi": { "network": "", "password": "" },
+  "thanks": "Thanks to Anthropic, CreateFuture, CodeBase and Techscaler",
+  "agenda": [
+    { "time": "17:30", "label": "Arrive, grab a badge, munch" },
+    { "time": "18:15", "label": "Welcome: CreateFuture + Techscaler" },
+    { "time": "18:20", "label": "Max: what's on my mind" },
+    { "time": "18:35", "label": "Q&A with Max + Darren" },
+    { "time": "19:05", "label": "Open mic room, chat, roam" },
+    { "time": "20:30", "label": "Wrap up, then the pub" }
+  ],
+  "urgency_start_minutes_before_end": 40,
+  "go_home_messages": [
+    "Time to go home!",
+    "The pub is calling...",
+    "The last tram waits for no one",
+    "Arthur's Seat will still be there tomorrow",
+    "git commit -m 'gone home'"
+  ],
+  "verbs": [
+    "Ascending Arthur's Seat...",
+    "Consulting David Hume...",
+    "Dividing the labour (sorry, Adam Smith)...",
+    "Waiting for the tram...",
+    "Debugging in the drizzle...",
+    "Compiling the Enlightenment...",
+    "Climbing the Royal Mile...",
+    "Rebasing onto Waverley...",
+    "Spawning subagents...",
+    "Bagging a Munro...",
+    "Pouring a wee dram...",
+    "Firing the One O'Clock Gun...",
+    "Forecasting four seasons in a day...",
+    "Reticulating splines...",
+    "Tunnelling under the Old Town...",
+    "Convening the Select Society...",
+    "Clearing the context window...",
+    "Parsing the haar...",
+    "Initializing curiosity...",
+    "Refactoring the universe..."
+  ]
+}

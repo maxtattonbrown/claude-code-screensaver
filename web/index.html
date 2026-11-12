@@ -1,0 +1,450 @@
+<!doctype html>
+<!-- ABOUTME: Web version of the CCC terminal screensaver, for a big screen mirrored from a phone. -->
+<!-- ABOUTME: Event content lives in config.json, re-read every minute so edits land without touching the phone. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CCC Screen">
+<meta name="theme-color" content="#000000">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<title>Claude Code Curious</title>
+<style>
+  :root { --u: 8px; --orange: rgb(215,119,87); --dim: rgb(128,128,128); --text: rgb(220,220,220); }
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body {
+    color: var(--text);
+    font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+    -webkit-text-size-adjust: 100%; -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent; cursor: none;
+    background: #000 radial-gradient(ellipse 70% 55% at 50% 32%, rgba(215,119,87,0.07), rgba(0,0,0,0) 70%);
+  }
+  #fx { position: fixed; left: 0; top: 0; z-index: 0; pointer-events: none; }
+  #stage {
+    position: fixed; inset: 0; z-index: 1; box-sizing: border-box;
+    display: flex; flex-direction: column; align-items: center;
+    padding: max(calc(var(--u)*2.5), env(safe-area-inset-top)) max(calc(var(--u)*3), env(safe-area-inset-right))
+             max(calc(var(--u)*3), env(safe-area-inset-bottom)) max(calc(var(--u)*3), env(safe-area-inset-left));
+  }
+  #top { width: 100%; display: flex; justify-content: space-between; align-items: flex-start; }
+  .box {
+    position: relative; border: max(1px, calc(var(--u)*0.22)) solid var(--orange);
+    border-radius: calc(var(--u)*1.1); white-space: pre;
+  }
+  .box .lbl { position: absolute; top: -0.75em; left: 1.2em; padding: 0 0.5em; background: #000; color: var(--orange); }
+  #welcome { font-size: calc(var(--u)*2.1); line-height: 1.35; padding: 0.55em 1.6em 0.55em 1em; }
+  #welcome .star { color: var(--orange); }
+  #welcome .muted { color: var(--dim); }
+  #clock { font-size: calc(var(--u)*2.6); text-align: right; line-height: 1.25; color: var(--text); }
+  #clock .day { display: block; font-size: 0.7em; color: var(--dim); }
+  #logo { margin-top: calc(var(--u)*1.2); filter: drop-shadow(0 0 calc(var(--u)*1.4) rgba(255,160,110,0.35)); }
+  #sub { margin-top: calc(var(--u)*2.4); font-size: calc(var(--u)*3); font-weight: 700; white-space: pre; }
+  #spin { margin-top: calc(var(--u)*2); font-size: calc(var(--u)*2.4); white-space: pre; }
+  #sg { color: var(--orange); display: inline-block; width: 1.2em; text-align: center; }
+  #meta { color: rgb(100,100,100); }
+  #lane { flex: 1; min-height: calc(var(--u)*8); width: 100%; }
+  #bottom { display: flex; gap: calc(var(--u)*9); align-items: flex-start; justify-content: center; width: 100%; }
+  #todos { font-size: calc(var(--u)*2.7); line-height: 1.32; white-space: pre; }
+  #todos .th .dot { color: rgb(78,186,101); }
+  #todos .th { font-weight: 700; }
+  .row { color: rgb(200,200,200); }
+  .row .el { color: var(--dim); }
+  .row.done { color: rgb(105,105,105); }
+  .row.done .tx { text-decoration: line-through; text-decoration-thickness: 0.06em; }
+  .row.now { color: #fff; font-weight: 700; }
+  .row.now .bx { color: var(--orange); }
+  .row.now .tag { color: var(--orange); font-weight: 400; }
+  #right { display: flex; flex-direction: column; gap: calc(var(--u)*2.2); padding-top: calc(var(--u)*1.2); }
+  #wifi { font-size: calc(var(--u)*3); line-height: 1.45; padding: 0.7em 1.4em 0.55em 1.1em; }
+  #wifi .k { color: var(--dim); font-size: 0.75em; }
+  #wifi b { color: #fff; }
+  #thanks { font-size: calc(var(--u)*1.9); color: var(--dim); white-space: pre; }
+  #toast { position: fixed; z-index: 3; left: 50%; transform: translateX(-50%); bottom: calc(var(--u)*1); font-size: calc(var(--u)*1.8);
+           color: var(--dim); opacity: 0; transition: opacity .4s; white-space: pre; }
+  #toast.on { opacity: 1; }
+  #rotate { display: none; font-size: calc(var(--u)*3); color: var(--dim); margin-top: calc(var(--u)*4); }
+  @media (orientation: portrait) { #rotate { display: block; } }
+</style>
+</head>
+<body>
+<canvas id="fx"></canvas>
+<div id="stage">
+  <div id="top">
+    <div class="box" id="welcome"></div>
+    <div id="clock"><span id="hm">--:--</span></div>
+  </div>
+  <div id="rotate">↻ rotate for the big screen</div>
+  <canvas id="logo"></canvas>
+  <div id="sub"></div>
+  <div id="spin"><span id="sg">✻</span> <span id="verb"></span> <span id="meta"></span></div>
+  <div id="lane"></div>
+  <div id="bottom">
+    <div id="todos"></div>
+    <div id="right">
+      <div class="box" id="wifi"></div>
+      <div id="thanks"></div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+"use strict";
+// ---------------------------------------------------------------------------
+// Defaults (overridden by config.json, which is re-read every 60s)
+// ---------------------------------------------------------------------------
+let CFG = {
+  subtitle: "CODE CURIOUS", welcome: "Welcome to Claude Code Curious!", date_line: "", venue: "", host: "",
+  wifi: { network: "", password: "" }, thanks: "", agenda: [], urgency_start_minutes_before_end: 40,
+  go_home_messages: ["Time to go home!", "The pub is calling...", "git commit -m 'gone home'"],
+  verbs: ["Reticulating splines...", "Compiling thoughts...", "Initializing curiosity..."],
+};
+
+// The CLAUDE block art and the Claude Code mascot, exactly as in screensaver.py
+const TITLE = [
+  "    ▄▄▄▄   ▄▄           ▄▄     ▄▄    ▄▄  ▄▄▄▄▄     ▄▄▄▄▄▄▄▄ ",
+  "  ██▀▀▀▀█  ██          ████    ██    ██  ██▀▀▀██   ██▀▀▀▀▀▀ ",
+  " ██▀       ██          ████    ██    ██  ██    ██  ██       ",
+  " ██        ██         ██  ██   ██    ██  ██    ██  ███████  ",
+  " ██▄       ██         ██████   ██    ██  ██    ██  ██       ",
+  "  ██▄▄▄▄█  ██▄▄▄▄▄▄  ▄██  ██▄  ▀██▄▄██▀  ██▄▄▄██   ██▄▄▄▄▄▄ ",
+  "    ▀▀▀▀   ▀▀▀▀▀▀▀▀  ▀▀    ▀▀    ▀▀▀▀    ▀▀▀▀▀     ▀▀▀▀▀▀▀▀",
+];
+const SQUID_BODY = [" ▐▛███▜▌ ", "▝▜█████▛▘"];
+const SQUID_LEGS = ["  ▘▘ ▝▝  ", "  ▝▝ ▘▘  "];
+const SQUID_W = 9;
+
+// Quadrant bits: 8 = top-left, 4 = top-right, 2 = bottom-left, 1 = bottom-right
+const Q = {" ":0,"█":15,"▀":12,"▄":3,"▌":10,"▐":5,"▘":8,"▝":4,"▖":2,"▗":1,"▛":14,"▜":13,"▙":11,"▟":7,"▚":9,"▞":6};
+
+const rgb = (a) => `rgb(${a[0]},${a[1]},${a[2]})`;
+// xterm-256 WARM palette from the terminal version, in the same order
+const WARM = [[215,135,95],[215,175,95],[215,175,135],[215,215,135],[215,215,175],[255,175,135],[255,175,175],
+  [255,215,175],[255,215,215],[255,255,215],[255,135,95],[255,175,95],[215,135,135],[175,135,135],[175,175,135]]
+  // ordered dark to light so the shimmer sweeps across the letters instead of speckling
+  .sort((a, b) => (0.3 * a[0] + 0.59 * a[1] + 0.11 * a[2]) - (0.3 * b[0] + 0.59 * b[1] + 0.11 * b[2])).map(rgb);
+const SQUID_COLOR = "rgb(255,175,135)";
+const GLOW = ["rgb(150,150,150)", "rgb(180,180,180)", "rgb(210,210,210)", "rgb(238,238,238)"];
+const SPINNER = ["·", "✢", "✷", "✶", "✻", "✽", "✻", "✶", "✷", "✢"];
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---------------------------------------------------------------------------
+// Time (Europe/London, with ?t=HH:MM to rehearse a later moment)
+// ---------------------------------------------------------------------------
+const londonFmt = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+function londonMinutes() {
+  const p = Object.fromEntries(londonFmt.formatToParts(new Date()).map((x) => [x.type, x.value]));
+  return (+p.hour % 24) * 60 + +p.minute + +p.second / 60;
+}
+let offsetMin = 0;
+const tParam = new URLSearchParams(location.search).get("t");
+if (tParam && /^\d{1,2}:\d{2}$/.test(tParam)) {
+  const [h, m] = tParam.split(":").map(Number);
+  offsetMin = h * 60 + m - londonMinutes();
+}
+const nowMin = () => londonMinutes() + offsetMin;
+const toMin = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
+const fmtHM = (mins) => { const m = ((Math.floor(mins) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0"); };
+
+// ---------------------------------------------------------------------------
+// Layout + sizing
+// ---------------------------------------------------------------------------
+let U = 8, S = 12, DPR = 1, cols = 0, rows = 0;
+const fx = $("fx"), fxc = fx.getContext("2d");
+const logo = $("logo"), lgc = logo.getContext("2d");
+const LOGO_COLS = Math.max(...TITLE.map((l) => [...l].length));
+let lane = { rowMin: 10, rowMax: 12 };
+
+function layout() {
+  const w = window.innerWidth, h = window.innerHeight;
+  DPR = Math.min(window.devicePixelRatio || 1, 3);
+  U = Math.min(h / 100, (w * 0.56) / 100);
+  S = U * 1.5;                       // one terminal cell is S wide and 2S tall
+  document.documentElement.style.setProperty("--u", U + "px");
+  fx.width = Math.round(w * DPR); fx.height = Math.round(h * DPR);
+  fx.style.width = w + "px"; fx.style.height = h + "px";
+  logo.width = Math.round(LOGO_COLS * S * DPR); logo.height = Math.round(TITLE.length * 2 * S * DPR);
+  logo.style.width = LOGO_COLS * S + "px"; logo.style.height = TITLE.length * 2 * S + "px";
+  cols = Math.ceil(w / S); rows = Math.ceil(h / (2 * S));
+  requestAnimationFrame(computeLane);
+}
+function computeLane() {
+  const top = $("spin").getBoundingClientRect().bottom + U;
+  const bottom = $("bottom").getBoundingClientRect().top;
+  const ch = 2 * S;
+  const rowMin = Math.ceil(top / ch);
+  lane = { rowMin, rowMax: Math.max(rowMin, Math.floor(bottom / ch) - 3) };
+}
+window.addEventListener("resize", layout);
+window.addEventListener("orientationchange", () => setTimeout(layout, 300));
+
+// Draw one terminal cell of block/quadrant characters, snapped to device pixels so cells join seamlessly
+function fillCell(ctx, ch, x, y, w, h, color) {
+  const b = Q[ch]; if (!b) return;
+  ctx.fillStyle = color;
+  const R = Math.round, xm = x + w / 2, ym = y + h / 2;
+  const rect = (x0, y0, x1, y1) => ctx.fillRect(R(x0), R(y0), R(x1) - R(x0), R(y1) - R(y0));
+  if (b & 8) rect(x, y, xm, ym);
+  if (b & 4) rect(xm, y, x + w, ym);
+  if (b & 2) rect(x, ym, xm, y + h);
+  if (b & 1) rect(xm, ym, x + w, y + h);
+}
+
+// ---------------------------------------------------------------------------
+// Static text (re-rendered whenever config changes)
+// ---------------------------------------------------------------------------
+let subChars = [];
+function renderText() {
+  const lines = [`<span class="star">✻</span> ${esc(CFG.welcome)}`, ""];
+  if (CFG.date_line) lines.push("  " + esc(CFG.date_line));
+  if (CFG.venue) lines.push("  " + esc(CFG.venue));
+  if (CFG.host) lines.push(`  <span class="muted">${esc(CFG.host)}</span>`);
+  $("welcome").innerHTML = lines.join("\n");
+
+  const spaced = [...CFG.subtitle].join(" ");
+  $("sub").innerHTML = [...spaced].map((c) => `<span>${c === " " ? " " : esc(c)}</span>`).join("");
+  subChars = [...$("sub").children];
+
+  const wf = CFG.wifi || {};
+  const wifiOn = wf.network || wf.password;
+  $("wifi").style.display = wifiOn ? "" : "none";
+  if (wifiOn) {
+    const w = [`<span class="lbl">Wi-Fi</span>`];
+    if (wf.network) w.push(`<span class="k">network </span> <b>${esc(wf.network)}</b>`);
+    if (wf.password) w.push(`<span class="k">password</span> <b>${esc(wf.password)}</b>`);
+    $("wifi").innerHTML = w.join("\n");
+  }
+  $("thanks").textContent = CFG.thanks || "";
+  renderTodos(true);
+  requestAnimationFrame(computeLane);
+}
+
+let lastTodoKey = "";
+function renderTodos(force) {
+  const items = CFG.agenda || [];
+  const now = nowMin();
+  let cur = -1;
+  items.forEach((it, i) => { if (toMin(it.time) <= now) cur = i; });
+  const key = cur + "|" + items.length;
+  if (!force && key === lastTodoKey) return;
+  lastTodoKey = key;
+  const width = Math.max(0, ...items.map((it) => it.label.length));
+  const out = [`<div class="th"><span class="dot">⏺︎</span> Update Todos</div>`];
+  items.forEach((it, i) => {
+    const state = i < cur ? "done" : i === cur ? "now" : "todo";
+    const box = state === "done" ? "☒" : "☐";
+    const el = i === 0 ? "  ⎿  " : "     ";
+    const tag = state === "now" ? `<span class="tag">${" ".repeat(width - it.label.length)}  ◂ now</span>` : "";
+    out.push(`<div class="row ${state}" data-i="${i}"><span class="el">${el}</span><span class="bx">${box}</span> <span class="tx">${esc(it.time)}  ${esc(it.label)}</span>${tag}</div>`);
+  });
+  $("todos").innerHTML = out.join("");
+}
+
+// ---------------------------------------------------------------------------
+// Animated things on the fx canvas: squids, hearts, particles
+// ---------------------------------------------------------------------------
+const rand = (a, b) => a + Math.random() * (b - a);
+const randInt = (a, b) => Math.floor(rand(a, b + 1));
+
+class Squid {
+  constructor() {
+    this.right = Math.random() < 0.5;
+    this.x = this.right ? -SQUID_W : cols;
+    this.dx = rand(0.2, 0.4) * (this.right ? 1 : -1);
+    this.y = randInt(lane.rowMin, lane.rowMax);
+    this.vy = 0; this.frame = 0; this.zipping = false; this.zipLeft = 0; this.done = false;
+    this.schedule();
+  }
+  schedule() { this.zipTimer = randInt(15, 35); }
+  step() {
+    this.frame++;
+    if (!this.zipping) {
+      this.zipTimer--; this.vy = Math.min(this.vy + 0.01, 0.15);
+      if (this.zipTimer <= 0) { this.zipping = true; this.zipLeft = randInt(10, 18); }
+    } else {
+      this.vy = -0.55; this.zipLeft--;
+      if (this.zipLeft <= 0) { this.zipping = false; this.vy = -0.1; this.schedule(); }
+    }
+    this.x += this.dx; this.y += this.vy;
+    this.y = Math.max(lane.rowMin, Math.min(lane.rowMax, this.y));
+    if ((this.right && this.x > cols + 2) || (!this.right && this.x < -SQUID_W - 2)) this.done = true;
+  }
+  draw(ctx) {
+    const legs = SQUID_LEGS[Math.floor(this.frame / (this.zipping ? 3 : 10)) % 2];
+    const lines = [...SQUID_BODY, legs];
+    const cw = S * DPR, ch = 2 * S * DPR, ix = Math.round(this.x), iy = Math.round(this.y);
+    lines.forEach((line, r) => [...line].forEach((c, j) => fillCell(ctx, c, (ix + j) * cw, (iy + r) * ch, cw, ch, SQUID_COLOR)));
+  }
+}
+
+const HEART = [".X.X.", "XXXXX", ".XXX.", "..X.."];
+class Heart {
+  constructor(x, y) { this.x = x; this.y = y; this.dy = -0.12; this.dx = rand(-0.1, 0.1); this.life = 40; this.done = false; }
+  step() { this.y += this.dy; this.x += this.dx; if (--this.life <= 0) this.done = true; }
+  draw(ctx) {
+    const p = S * 0.28 * DPR, cw = S * DPR, ch = 2 * S * DPR;
+    ctx.globalAlpha = this.life > 20 ? 1 : this.life > 10 ? 0.75 : 0.4;
+    ctx.fillStyle = this.life > 20 ? "rgb(255,95,135)" : "rgb(255,135,135)";
+    const x0 = Math.round(this.x) * cw + (cw - 5 * p) / 2, y0 = Math.round(this.y) * ch + (ch - 4 * p) / 2;
+    HEART.forEach((row, r) => [...row].forEach((c, k) => { if (c === "X") ctx.fillRect(Math.round(x0 + k * p), Math.round(y0 + r * p), Math.ceil(p), Math.ceil(p)); }));
+    ctx.globalAlpha = 1;
+  }
+}
+
+class Particle {
+  constructor() {
+    this.x = randInt(2, cols - 3); this.y = rows - 1; this.dx = rand(-0.3, 0.3); this.speed = rand(0.05, 0.15);
+    this.color = WARM[randInt(0, WARM.length - 1)]; this.done = false;
+  }
+  step() { this.y -= this.speed; this.x += this.dx; if (this.y < 0) this.done = true; }
+  draw(ctx) {
+    const progress = 1 - this.y / rows;
+    ctx.globalAlpha = progress > 0.7 ? 0.35 : progress > 0.3 ? 0.65 : 1;
+    ctx.fillStyle = this.color;
+    const cw = S * DPR, ch = 2 * S * DPR, d = Math.max(2, Math.round(S * 0.22 * DPR));
+    ctx.fillRect(Math.round(Math.round(this.x) * cw + cw / 2 - d / 2), Math.round(Math.round(this.y) * ch + ch / 2 - d / 2), d, d);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main tick: 80 ms, like the terminal version
+// ---------------------------------------------------------------------------
+let eggs = [], tick = 0, verbIdx = 0, lastVerb = 0, nextEgg = 0, nextMote = 0, goHomeIdx = 0;
+const t0 = performance.now();
+
+function frame() {
+  const t = (performance.now() - t0) / 1000;
+  tick++;
+
+  // Logo shimmer
+  lgc.clearRect(0, 0, logo.width, logo.height);
+  const cw = S * DPR, ch = 2 * S * DPR;
+  TITLE.forEach((line, i) => [...line].forEach((c, j) => {
+    if (c === " ") return;
+    const sh = Math.sin(j * 0.3 + t * 0.4 + i * 0.5);
+    fillCell(lgc, c, j * cw, i * ch, cw, ch, WARM[Math.floor(((sh + 1) / 2) * WARM.length) % WARM.length]);
+  }));
+
+  // Subtitle shimmer
+  subChars.forEach((el, j) => {
+    const sh = Math.sin(j * 0.4 + t * 0.3);
+    el.style.color = WARM[Math.floor(((sh + 1) / 2) * WARM.length) % WARM.length];
+  });
+
+  // Agenda + go-home urgency
+  const now = nowMin();
+  renderTodos(false);
+  const items = CFG.agenda || [];
+  let urgency = 0, pastEnd = false;
+  if (items.length) {
+    const end = toMin(items[items.length - 1].time);
+    const span = Math.max(1, CFG.urgency_start_minutes_before_end || 40);
+    urgency = Math.max(0, (now - (end - span)) / span);
+    pastEnd = now >= end;
+    const last = document.querySelector(`#todos .row[data-i="${items.length - 1}"]`);
+    if (last) {
+      if (urgency > 0) {
+        const speed = 0.6 + Math.min(urgency, 2) * 2.2;
+        const pulse = (Math.sin(t * speed * Math.PI) + 1) / 2;
+        last.style.opacity = String(0.55 + 0.45 * pulse);
+        last.style.color = pastEnd ? `rgb(255,${Math.round(135 + 80 * pulse)},${Math.round(135 + 40 * pulse)})` : "";
+      } else { last.style.opacity = ""; last.style.color = ""; }
+    }
+  }
+
+  // Spinner line: rotating verbs, or go-home messages once the end time passes
+  if (t - lastVerb > 8) {
+    lastVerb = t;
+    if (pastEnd) goHomeIdx = (goHomeIdx + 1) % CFG.go_home_messages.length;
+    else verbIdx = (verbIdx + 1) % CFG.verbs.length;
+  }
+  const verb = (pastEnd ? CFG.go_home_messages[goHomeIdx] : CFG.verbs[verbIdx % CFG.verbs.length]) || "";
+  $("verb").textContent = verb.replace(/\.\.\.$/, "…");
+  $("verb").style.color = pastEnd ? "rgb(255,175,175)" : GLOW[Math.floor(((Math.sin(t * 0.5) + 1) / 2) * 3.999)];
+  $("sg").textContent = SPINNER[Math.floor(tick / 2) % SPINNER.length];
+  $("meta").textContent = `(${Math.floor(t - lastVerb)}s · esc to interrupt)`;
+
+  // Clock
+  $("hm").textContent = fmtHM(now);
+
+  // Spawn: a squid or a puff of particles every 10–25 s, plus a slow trickle of motes
+  if (t > nextEgg) {
+    if (Math.random() < 0.65) eggs.push(new Squid());
+    else for (let k = randInt(1, 3); k > 0; k--) eggs.push(new Particle());
+    nextEgg = t + rand(10, 25);
+  }
+  if (t > nextMote) { eggs.push(new Particle()); nextMote = t + rand(1.5, 4); }
+
+  fxc.clearRect(0, 0, fx.width, fx.height);
+  eggs.forEach((e) => { e.step(); if (!e.done) e.draw(fxc); });
+
+  // Two squids meeting make a heart
+  const squids = eggs.filter((e) => e instanceof Squid && !e.done);
+  for (let a = 0; a < squids.length; a++) for (let b = a + 1; b < squids.length; b++) {
+    const A = squids[a], B = squids[b];
+    if (Math.abs(A.x - B.x) < SQUID_W && Math.abs(A.y - B.y) < 3 && A.frame % 20 === 0)
+      eggs.push(new Heart((A.x + B.x) / 2 + SQUID_W / 2, Math.min(A.y, B.y) - 1));
+  }
+  eggs = eggs.filter((e) => !e.done);
+}
+
+// ---------------------------------------------------------------------------
+// Config polling, wake lock, fullscreen
+// ---------------------------------------------------------------------------
+let cfgKey = "";
+async function loadConfig() {
+  try {
+    const res = await fetch("config.json?ts=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) return;
+    const txt = await res.text();
+    if (txt === cfgKey) return;
+    cfgKey = txt;
+    CFG = Object.assign({}, CFG, JSON.parse(txt));
+    renderText();
+  } catch (e) { /* offline: keep what we have */ }
+}
+
+let wakeLock = null;
+async function keepAwake() {
+  try {
+    if ("wakeLock" in navigator && document.visibilityState === "visible" && !wakeLock) {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => { wakeLock = null; });
+    }
+  } catch (e) { wakeLock = null; }
+  return !!wakeLock;
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { keepAwake(); loadConfig(); } });
+
+let toastTimer;
+function toast(msg) {
+  $("toast").textContent = msg; $("toast").classList.add("on");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => $("toast").classList.remove("on"), 4000);
+}
+document.addEventListener("click", async () => {
+  const el = document.documentElement;
+  if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {});
+  const ok = await keepAwake();
+  toast(ok ? "✓ screen will stay awake" : "! set Auto-Lock to Never to keep the screen on");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "f") document.documentElement.requestFullscreen?.().catch(() => {});
+});
+
+layout();
+renderText();
+loadConfig();
+keepAwake();
+setInterval(loadConfig, 60000);
+setInterval(frame, 80);
+frame();
+</script>
+</body>
+</html>
