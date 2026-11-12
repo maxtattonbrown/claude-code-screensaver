@@ -114,9 +114,23 @@ const TITLE = [
   "  ██▄▄▄▄█  ██▄▄▄▄▄▄  ▄██  ██▄  ▀██▄▄██▀  ██▄▄▄██   ██▄▄▄▄▄▄ ",
   "    ▀▀▀▀   ▀▀▀▀▀▀▀▀  ▀▀    ▀▀    ▀▀▀▀    ▀▀▀▀▀     ▀▀▀▀▀▀▀▀",
 ];
-const SQUID_BODY = [" ▐▛███▜▌ ", "▝▜█████▛▘"];
-const SQUID_LEGS = ["  ▘▘ ▝▝  ", "  ▝▝ ▘▘  "];
-const SQUID_W = 9;
+// The CCC crab (Clawd sprite) and the big crab that peeks up from the bottom, as in screensaver.py on GitHub
+const CRAB_BODY = [" ▐▛███▜▌ ", "▝▜█████▛▘"];
+const CRAB_LEGS = ["  ▘▘ ▝▝  ", "  ▝▝ ▘▘  "];
+const CRAB_W = 9;
+const MAX_CRABS = 5;
+const BIG_CRAB_OPEN = [
+  "██████████████████████████████████████████████████",
+  "██████████████████████████████████████████████████",
+  "████████████      ██████████████      ████████████",
+  "████████████      ██████████████      ████████████",
+  "████████████      ██████████████      ████████████",
+  "██████████████████████████████████████████████████",
+  "██████████████████████████████████████████████████",
+  "██████████████████████████████████████████████████",
+];
+const BIG_CRAB_W = 50, BIG_CRAB_H = BIG_CRAB_OPEN.length;
+const BIG_CRAB_BLINK = Array(BIG_CRAB_H).fill("█".repeat(BIG_CRAB_W));
 
 // Quadrant bits: 8 = top-left, 4 = top-right, 2 = bottom-left, 1 = bottom-right
 const Q = {" ":0,"█":15,"▀":12,"▄":3,"▌":10,"▐":5,"▘":8,"▝":4,"▖":2,"▗":1,"▛":14,"▜":13,"▙":11,"▟":7,"▚":9,"▞":6};
@@ -127,7 +141,9 @@ const WARM = [[215,135,95],[215,175,95],[215,175,135],[215,215,135],[215,215,175
   [255,215,175],[255,215,215],[255,255,215],[255,135,95],[255,175,95],[215,135,135],[175,135,135],[175,175,135]]
   // ordered dark to light so the shimmer sweeps across the letters instead of speckling
   .sort((a, b) => (0.3 * a[0] + 0.59 * a[1] + 0.11 * a[2]) - (0.3 * b[0] + 0.59 * b[1] + 0.11 * b[2])).map(rgb);
-const SQUID_COLOR = "rgb(255,175,135)";
+const CRAB_COLOR = "rgb(255,135,0)";
+// Accessories some crabs carry: ✦ lightbulb, ◎ magnifying glass, ? question
+const ACCESSORIES = [null, null, null, ["✦", "rgb(255,255,0)"], ["✦", "rgb(255,255,0)"], ["◎", "rgb(208,208,208)"], ["?", "rgb(238,238,238)"]];
 const GLOW = ["rgb(150,150,150)", "rgb(180,180,180)", "rgb(210,210,210)", "rgb(238,238,238)"];
 const SPINNER = ["·", "✢", "✷", "✶", "✻", "✽", "✻", "✶", "✷", "✢"];
 
@@ -172,7 +188,7 @@ function layout() {
   logo.width = Math.round(LOGO_COLS * S * DPR); logo.height = Math.round(TITLE.length * 2 * S * DPR);
   logo.style.width = LOGO_COLS * S + "px"; logo.style.height = TITLE.length * 2 * S + "px";
   cols = Math.ceil(w / S); rows = Math.ceil(h / (2 * S));
-  requestAnimationFrame(computeLane);
+  computeLane();
 }
 function computeLane() {
   const top = $("spin").getBoundingClientRect().bottom + U;
@@ -222,7 +238,7 @@ function renderText() {
   }
   $("thanks").textContent = CFG.thanks || "";
   renderTodos(true);
-  requestAnimationFrame(computeLane);
+  computeLane();
 }
 
 let lastTodoKey = "";
@@ -247,53 +263,97 @@ function renderTodos(force) {
 }
 
 // ---------------------------------------------------------------------------
-// Animated things on the fx canvas: squids, hearts, particles
+// Animated things on the fx canvas: crabs, the big peeking crab, particles
 // ---------------------------------------------------------------------------
 const rand = (a, b) => a + Math.random() * (b - a);
 const randInt = (a, b) => Math.floor(rand(a, b + 1));
 
-class Squid {
+// Draw one character centred in a terminal cell
+function cellText(ctx, c, col, row, color) {
+  const cw = S * DPR, ch = 2 * S * DPR;
+  ctx.font = `700 ${Math.round(ch * 0.8)}px ui-monospace, "SF Mono", Menlo, monospace`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = color;
+  ctx.fillText(c, col * cw + cw / 2, row * ch + ch / 2);
+}
+
+// A CCC crab scuttles sideways in bursts, stops to chat with crabs it meets, and flees the big crab
+class Crab {
   constructor() {
+    this.frame = 0; this.mode = "scuttle"; this.done = false;
+    this.acc = ACCESSORIES[randInt(0, ACCESSORIES.length - 1)];
+    this.chatTimer = 0; this.partner = null; this.cooldown = 0;
     this.right = Math.random() < 0.5;
-    this.x = this.right ? -SQUID_W : cols;
-    this.dx = rand(0.2, 0.4) * (this.right ? 1 : -1);
-    this.y = randInt(lane.rowMin, lane.rowMax);
-    this.vy = 0; this.frame = 0; this.zipping = false; this.zipLeft = 0; this.done = false;
-    this.schedule();
+    this.x = this.right ? -CRAB_W : cols;
+    this.dx = rand(0.25, 0.5) * (this.right ? 1 : -1);
+    this.y = randInt(lane.rowMin, lane.rowMax); this.vy = 0;
+    this.paused = false; this.schedulePause();
   }
-  schedule() { this.zipTimer = randInt(15, 35); }
+  schedulePause() { this.pauseTimer = randInt(20, 50); }
+  resume() { this.mode = "scuttle"; this.partner = null; this.cooldown = 40; this.schedulePause(); }
   step() {
     this.frame++;
-    if (!this.zipping) {
-      this.zipTimer--; this.vy = Math.min(this.vy + 0.01, 0.15);
-      if (this.zipTimer <= 0) { this.zipping = true; this.zipLeft = randInt(10, 18); }
-    } else {
-      this.vy = -0.55; this.zipLeft--;
-      if (this.zipLeft <= 0) { this.zipping = false; this.vy = -0.1; this.schedule(); }
+    if (this.mode === "flee") {
+      this.x += this.dx; this.y -= 0.3;
+      if (this.x < -CRAB_W - 2 || this.x > cols + 2) this.done = true;
+      return;
     }
-    this.x += this.dx; this.y += this.vy;
+    if (this.mode === "chat") {
+      if (--this.chatTimer <= 0) {
+        // Chat over: swap accessories with the partner and move on
+        if (this.partner && !this.partner.done) { [this.acc, this.partner.acc] = [this.partner.acc, this.acc]; this.partner.resume(); }
+        this.resume();
+      }
+      return;
+    }
+    if (this.cooldown > 0) this.cooldown--;
+    if (!this.paused) { if (--this.pauseTimer <= 0) { this.paused = true; this.pauseTimer = randInt(8, 20); } }
+    else if (--this.pauseTimer <= 0) { this.paused = false; this.schedulePause(); this.vy = rand(-0.1, 0.1); }
+    if (!this.paused) this.x += this.dx;
+    this.y += this.vy; this.vy *= 0.95;
     this.y = Math.max(lane.rowMin, Math.min(lane.rowMax, this.y));
-    if ((this.right && this.x > cols + 2) || (!this.right && this.x < -SQUID_W - 2)) this.done = true;
+    if (this.x > cols + 2 || this.x < -CRAB_W - 2) this.done = true;
   }
-  draw(ctx) {
-    const legs = SQUID_LEGS[Math.floor(this.frame / (this.zipping ? 3 : 10)) % 2];
-    const lines = [...SQUID_BODY, legs];
-    const cw = S * DPR, ch = 2 * S * DPR, ix = Math.round(this.x), iy = Math.round(this.y);
-    lines.forEach((line, r) => [...line].forEach((c, j) => fillCell(ctx, c, (ix + j) * cw, (iy + r) * ch, cw, ch, SQUID_COLOR)));
+  draw(ctx, t) {
+    const legIdx = this.mode === "chat" ? 0 : Math.floor(this.frame / (this.mode === "flee" ? 2 : this.paused ? 8 : 5)) % 2;
+    const lines = [...CRAB_BODY, CRAB_LEGS[legIdx]];
+    const cw = S * DPR, ch = 2 * S * DPR, ix = Math.trunc(this.x), iy = Math.trunc(this.y);
+    lines.forEach((line, r) => [...line].forEach((c, j) => fillCell(ctx, c, (ix + j) * cw, (iy + r) * ch, cw, ch, CRAB_COLOR)));
+    if (this.acc && this.mode !== "chat") {
+      const bob = Math.trunc(Math.sin(t * 2 + this.x) * 0.4);
+      cellText(ctx, this.acc[0], ix + Math.floor(CRAB_W / 2), iy - 1 + bob, this.acc[1]);
+    }
+    if (this.mode === "chat") {
+      const dots = Math.floor(this.frame / 10) % 2 === 0 ? "..." : " . ";
+      [...dots].forEach((c, k) => { if (c !== " ") cellText(ctx, c, ix + Math.floor(CRAB_W / 2) - 1 + k, iy - 1, "rgb(208,208,208)"); });
+    }
   }
 }
 
-const HEART = [".X.X.", "XXXXX", ".XXX.", "..X.."];
-class Heart {
-  constructor(x, y) { this.x = x; this.y = y; this.dy = -0.12; this.dx = rand(-0.1, 0.1); this.life = 40; this.done = false; }
-  step() { this.y += this.dy; this.x += this.dx; if (--this.life <= 0) this.done = true; }
+// A big crab rises from the bottom of the screen, blinks a few times, then sinks back
+class CrabPeek {
+  constructor() {
+    this.frame = 0; this.done = false;
+    this.x = Math.floor((cols - BIG_CRAB_W) / 2) + randInt(-10, 10);
+    this.y = rows; this.target = rows - BIG_CRAB_H + 2;
+    this.phase = "rising"; this.peekUntil = 0; this.blinkUntil = 0; this.nextBlink = 0;
+  }
+  step() {
+    this.frame++;
+    if (this.phase === "rising") {
+      this.y -= 0.15;
+      if (this.y <= this.target) { this.y = this.target; this.phase = "peeking"; this.peekUntil = this.frame + 100; this.nextBlink = this.frame + randInt(15, 30); }
+    } else if (this.phase === "peeking") {
+      if (this.frame > this.peekUntil) this.phase = "sinking";
+      if (this.frame >= this.nextBlink && this.blinkUntil <= this.frame) { this.blinkUntil = this.frame + randInt(3, 6); this.nextBlink = this.frame + randInt(15, 35); }
+    } else {
+      this.y += 0.15;
+      if (this.y > rows) this.done = true;
+    }
+  }
   draw(ctx) {
-    const p = S * 0.28 * DPR, cw = S * DPR, ch = 2 * S * DPR;
-    ctx.globalAlpha = this.life > 20 ? 1 : this.life > 10 ? 0.75 : 0.4;
-    ctx.fillStyle = this.life > 20 ? "rgb(255,95,135)" : "rgb(255,135,135)";
-    const x0 = Math.round(this.x) * cw + (cw - 5 * p) / 2, y0 = Math.round(this.y) * ch + (ch - 4 * p) / 2;
-    HEART.forEach((row, r) => [...row].forEach((c, k) => { if (c === "X") ctx.fillRect(Math.round(x0 + k * p), Math.round(y0 + r * p), Math.ceil(p), Math.ceil(p)); }));
-    ctx.globalAlpha = 1;
+    const sprite = this.phase === "peeking" && this.frame < this.blinkUntil ? BIG_CRAB_BLINK : BIG_CRAB_OPEN;
+    const cw = S * DPR, ch = 2 * S * DPR, ix = Math.trunc(this.x), iy = Math.trunc(this.y);
+    sprite.forEach((line, r) => [...line].forEach((c, j) => fillCell(ctx, c, (ix + j) * cw, (iy + r) * ch, cw, ch, CRAB_COLOR)));
   }
 }
 
@@ -316,12 +376,13 @@ class Particle {
 // ---------------------------------------------------------------------------
 // Main tick: 80 ms, like the terminal version
 // ---------------------------------------------------------------------------
-let eggs = [], tick = 0, verbIdx = 0, lastVerb = 0, nextEgg = 0, nextMote = 0, goHomeIdx = 0;
+let eggs = [], tick = 0, verbIdx = 0, lastVerb = 0, nextEgg = 0, nextMote = 0, goHomeIdx = 0, nextPeek = rand(90, 180);
 const t0 = performance.now();
 
 function frame() {
   const t = (performance.now() - t0) / 1000;
   tick++;
+  if (tick % 25 === 0) computeLane();
 
   // Logo shimmer
   lgc.clearRect(0, 0, logo.width, logo.height);
@@ -374,23 +435,41 @@ function frame() {
   // Clock
   $("hm").textContent = fmtHM(now);
 
-  // Spawn: a squid or a puff of particles every 10–25 s, plus a slow trickle of motes
+  // Spawn: a crab straight away, then a crab (up to 5) or a puff of particles every 8–18 s, plus a slow trickle of motes
+  const liveCrabs = eggs.filter((e) => e instanceof Crab && !e.done);
   if (t > nextEgg) {
-    if (Math.random() < 0.65) eggs.push(new Squid());
-    else for (let k = randInt(1, 3); k > 0; k--) eggs.push(new Particle());
-    nextEgg = t + rand(10, 25);
+    if (nextEgg === 0) { eggs.push(new Crab()); nextEgg = t + rand(5, 12); }
+    else {
+      if (Math.random() < 0.8 && liveCrabs.length < MAX_CRABS) eggs.push(new Crab());
+      else for (let k = randInt(1, 3); k > 0; k--) eggs.push(new Particle());
+      nextEgg = t + rand(8, 18);
+    }
   }
   if (t > nextMote) { eggs.push(new Particle()); nextMote = t + rand(1.5, 4); }
 
-  fxc.clearRect(0, 0, fx.width, fx.height);
-  eggs.forEach((e) => { e.step(); if (!e.done) e.draw(fxc); });
+  // Now and then a big crab peeks up from the bottom, and the small crabs flee
+  if (t > nextPeek) {
+    if (!eggs.some((e) => e instanceof CrabPeek && !e.done)) {
+      eggs.unshift(new CrabPeek());
+      liveCrabs.forEach((c) => { c.mode = "flee"; c.partner = null; c.dx = (c.x < cols / 2 ? -1 : 1) * rand(0.8, 1.5); });
+    }
+    nextPeek = t + rand(120, 240);
+  }
 
-  // Two squids meeting make a heart
-  const squids = eggs.filter((e) => e instanceof Squid && !e.done);
-  for (let a = 0; a < squids.length; a++) for (let b = a + 1; b < squids.length; b++) {
-    const A = squids[a], B = squids[b];
-    if (Math.abs(A.x - B.x) < SQUID_W && Math.abs(A.y - B.y) < 3 && A.frame % 20 === 0)
-      eggs.push(new Heart((A.x + B.x) / 2 + SQUID_W / 2, Math.min(A.y, B.y) - 1));
+  fxc.clearRect(0, 0, fx.width, fx.height);
+  eggs.forEach((e) => { e.step(); if (!e.done) e.draw(fxc, t); });
+
+  // Two scuttling crabs that meet stop for a chat
+  const free = eggs.filter((e) => e instanceof Crab && !e.done && e.mode === "scuttle" && e.cooldown <= 0);
+  for (let a = 0; a < free.length; a++) {
+    const A = free[a]; if (A.mode !== "scuttle") continue;
+    for (let b = a + 1; b < free.length; b++) {
+      const B = free[b];
+      if (B.mode === "scuttle" && Math.abs(A.x - B.x) < CRAB_W && Math.abs(A.y - B.y) < 3) {
+        A.mode = B.mode = "chat"; A.chatTimer = B.chatTimer = randInt(30, 60); A.partner = B; B.partner = A;
+        break;
+      }
+    }
   }
   eggs = eggs.filter((e) => !e.done);
 }
