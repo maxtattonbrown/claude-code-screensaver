@@ -4,18 +4,20 @@
   "date_line": "Edinburgh · Thu 12 Nov 2026",
   "venue": "CreateFuture, The Stamp Office",
   "host": "host: Max Tatton-Brown · maxtb.com",
-  "wifi": { "network": "CF-Events", "password": "CreateFuture2025!" },
+  "wifi": {
+    "network": "CF-Events",
+    "password": "CreateFuture2025!"
+  },
   "thanks": "Thanks to Anthropic, CreateFuture, CodeBase and Techscaler",
   "agenda": [
     { "time": "17:30", "label": "Arrive, grab a badge, munch" },
     { "time": "18:15", "label": "Welcome + Q&A with Max and Darren" },
     { "time": "19:00", "label": "Open mic, chat, find your people" },
-    { "time": "20:30", "label": "Wrap up, then the pub" }
+    { "time": "20:30", "label": "Wrap up, see you next time" }
   ],
   "urgency_start_minutes_before_end": 40,
   "go_home_messages": [
     "Time to go home!",
-    "The pub is calling...",
     "The last tram waits for no one",
     "Arthur's Seat will still be there tomorrow",
     "git commit -m 'gone home'"
