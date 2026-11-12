@@ -67,6 +67,8 @@
   #toast { position: fixed; z-index: 3; left: 50%; transform: translateX(-50%); bottom: calc(var(--u)*1); font-size: calc(var(--u)*1.8);
            color: var(--dim); opacity: 0; transition: opacity .4s; white-space: pre; }
   #toast.on { opacity: 1; }
+  #awake { position: fixed; z-index: 3; left: max(calc(var(--u)*3), env(safe-area-inset-left)); bottom: calc(var(--u)*1);
+           font-size: calc(var(--u)*1.6); color: rgb(110,110,110); display: none; }
   #rotate { display: none; font-size: calc(var(--u)*3); color: var(--dim); margin-top: calc(var(--u)*4); }
   @media (orientation: portrait) { #rotate { display: block; } }
 </style>
@@ -92,6 +94,10 @@
   </div>
 </div>
 <div id="toast"></div>
+<div id="awake">tap once to keep the screen awake</div>
+<!-- A tiny muted looping video: a playing video stops iOS auto-locking, as a backstop to the Wake Lock API -->
+<video id="nosleep" src="nosleep.mp4" muted playsinline loop autoplay preload="auto"
+  style="position:fixed;left:0;top:0;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:0"></video>
 <script>
 "use strict";
 // ---------------------------------------------------------------------------
@@ -500,7 +506,17 @@ async function keepAwake() {
   } catch (e) { wakeLock = null; }
   return !!wakeLock;
 }
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { keepAwake(); loadConfig(); } });
+const nosleep = $("nosleep");
+const videoAwake = () => !nosleep.paused && !nosleep.ended && nosleep.readyState > 2;
+async function stayAwake() {
+  if (nosleep.paused) { try { await nosleep.play(); } catch (e) { /* needs a tap first */ } }
+  const ok = (await keepAwake()) || videoAwake();
+  $("awake").style.display = ok ? "none" : "block";
+  return ok;
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") { stayAwake(); loadConfig(); } });
+nosleep.addEventListener("playing", () => { $("awake").style.display = "none"; });
+setInterval(stayAwake, 15000);
 
 let toastTimer;
 function toast(msg) {
@@ -510,7 +526,7 @@ function toast(msg) {
 document.addEventListener("click", async () => {
   const el = document.documentElement;
   if (el.requestFullscreen && !document.fullscreenElement) el.requestFullscreen().catch(() => {});
-  const ok = await keepAwake();
+  const ok = await stayAwake();
   toast(ok ? "✓ screen will stay awake" : "! set Auto-Lock to Never to keep the screen on");
 });
 document.addEventListener("keydown", (e) => {
@@ -520,7 +536,7 @@ document.addEventListener("keydown", (e) => {
 layout();
 renderText();
 loadConfig();
-keepAwake();
+stayAwake();
 setInterval(loadConfig, 60000);
 setInterval(frame, 80);
 frame();
